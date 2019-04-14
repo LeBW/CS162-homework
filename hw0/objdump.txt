@@ -1,0 +1,7 @@
+1. file format: elf64-x86-64.  Compile for:  i386:x86-64.
+
+2. .init, .plt, .text
+
+3. .text. 0x000000000040067d.
+
+4. no. Stack and heap are runtime concepts, which have no pre-baked segment in the executable. Since they are just scratch space used dynamically, they don't exist in the executable. They are created automatically at precess(heap) and thread(stack) creation.

@@ -1,0 +1,14 @@
+1. _main and recur are in '.text' section. static data are in '.data' section.
+
+2. .text: target code segment.
+   .rodata: read-only data.
+   .data: Static data that has been initialized.
+   .bss: Static data that has not been initialized.
+
+3. stack are growing from big address to small address.
+
+4. 48 bytes.
+
+5. heap is in 0xc90010. It grows from small address to big address.
+
+6. Yes. There are 112 bytes between two address, but we only allocate 100 bytes.

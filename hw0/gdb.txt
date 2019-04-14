@@ -1,0 +1,18 @@
+1. What's the value of argv?
+(char **)0x7fffffffe5d8
+
+2. What's pointed to by argv?
+"/home/vagrant/code/personal/hw0/wc"
+
+3. What's the address of the function main?
+0x40067d
+
+4. info stack
+I see the stack I am in and What previous stacks are.
+
+5. info frame
+examine stack frames.info frame displays information about the current stack frame.
+
+6. info registers
+rax: address of main.
+rsi: value of argv.
