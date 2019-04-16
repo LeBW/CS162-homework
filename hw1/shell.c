@@ -113,6 +113,32 @@ void init_shell() {
   }
 }
 
+/* Resolve path  */
+char* resolve_path(char *path) {
+    char *is_exist = strchr(path, '/');
+    if (is_exist != NULL)
+        return path;
+    char* result = malloc(BUFFERSIZE);
+    char* env_path = getenv("PATH");
+    char* temp_path = malloc(BUFFERSIZE);
+    strcpy(temp_path, env_path);
+
+    char *p = strtok(temp_path, ":");
+    while (p != NULL) {
+        strcpy(result, p);
+        strcat(result, "/");
+        strcat(result, path);
+
+        if (access(result, F_OK) == -1) {
+            p = strtok(NULL, ":");
+        }
+        else {
+            return result;
+        }
+    }
+    return NULL;
+}
+
 int main(unused int argc, unused char *argv[]) {
   init_shell();
 
@@ -140,13 +166,14 @@ int main(unused int argc, unused char *argv[]) {
       if (cpid == 0) {
         size_t length = tokens_get_length(tokens);
         char* path = tokens_get_token(tokens, 0);
+        char* r_path = resolve_path(path);
         char* argv[length+1];
         for (int i = 0; i < length; i++) {
           argv[i] = tokens_get_token(tokens, i);
         }
         argv[length] = NULL;
 
-        execv(path, argv);
+        execv(r_path, argv);
         exit(0);
       }
       else {
