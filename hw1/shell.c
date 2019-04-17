@@ -91,6 +91,11 @@ int lookup(char cmd[]) {
 
 /* Intialization procedures for this shell */
 void init_shell() {
+  /* ignore some signals in shell process*/
+  //signal(SIGTTIN, SIG_IGN);
+  signal(SIGTTOU, SIG_IGN);
+  signal(SIGSTOP, SIG_IGN);
+  signal(SIGINT, SIG_IGN);
   /* Our shell is connected to standard input. */
   shell_terminal = STDIN_FILENO;
 
@@ -166,7 +171,14 @@ int main(unused int argc, unused char *argv[]) {
       /* fork a child process and execute the program. */
       pid_t cpid = fork();
       if (cpid == 0) {
-          // in child process.
+          /* in child process. */
+          setpgrp();  // set process group ID to it's own group
+          // restore signal handler.
+          signal(SIGTTIN, SIG_DFL);
+          signal(SIGTTOU, SIG_DFL);
+          signal(SIGSTOP, SIG_DFL);
+          signal(SIGINT, SIG_DFL);
+          //resolve the path and argv
           size_t length = tokens_get_length(tokens);
           char* path = tokens_get_token(tokens, 0);
           char* r_path = resolve_path(path);
@@ -191,6 +203,7 @@ int main(unused int argc, unused char *argv[]) {
                   for (int j = i; j <= length; j++) {
                       argv[j] = NULL;
                   }
+                  break;
                   execv(r_path, argv);
                   printf("Error execute the program.\n");
                   exit(127);
@@ -211,6 +224,7 @@ int main(unused int argc, unused char *argv[]) {
                   for (int j = i; j <= length; j++) {
                       argv[j] = NULL;
                   }
+                  break;
                   execv(r_path, argv);
                   printf("Error execute the program.\n");
                   exit(127);
@@ -227,14 +241,18 @@ int main(unused int argc, unused char *argv[]) {
       }
       else {
           // in parent process.
+          tcsetpgrp(shell_terminal, cpid); // set terminal foreground process group to child process group.
           int status;
           wait(&status);
+          // set terminal foreground process group to shell.
+          tcsetpgrp(shell_terminal, shell_pgid);
       }
     }
 
-    if (shell_is_interactive)
+    if (shell_is_interactive) {
       /* Please only print shell prompts when standard input is not a tty */
       fprintf(stdout, "%d: ", ++line_num);
+    }
 
     /* Clean up memory */
     tokens_destroy(tokens);
