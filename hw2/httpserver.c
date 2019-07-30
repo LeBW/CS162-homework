@@ -8,6 +8,8 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -18,6 +20,8 @@
 #include "libhttp.h"
 #include "wq.h"
 
+#define BLOCK 1024
+#define LIBHTTP_REQUEST_MAX_SIZE 8192
 /*
  * Global configuration variables.
  * You need to use these in your implementation of handle_files_request and
@@ -31,6 +35,7 @@ char *server_files_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 
+// bool isDirectory(const char* path);
 
 /*
  * Reads an HTTP request from stream (fd), and writes an HTTP response
@@ -43,24 +48,111 @@ int server_proxy_port;
  *      of files in the directory with links to each.
  *   4) Send a 404 Not Found response.
  */
+
+void write_file(char *file_path, FILE *fp, int fd) {
+  //read the file into read_buffer
+  char *read_buffer = malloc(LIBHTTP_REQUEST_MAX_SIZE + 1);
+  if (!read_buffer) {
+    fprintf(stderr, "%s\n", "Malloc Failed");
+  }
+  int bytes_read = fread(read_buffer, sizeof(char), LIBHTTP_REQUEST_MAX_SIZE, fp);
+  read_buffer[bytes_read] = '\0';
+  int sz = strlen(read_buffer);
+  // convert the int to char*.
+  char sz_string[20];
+  snprintf(sz_string, sizeof(sz_string), "%d", sz);
+
+  // start to write response.
+  http_start_response(fd, 200);
+  http_send_header(fd, "Content-Type", http_get_mime_type(file_path));
+  http_send_header(fd, "Content-Length", sz_string);
+  http_end_headers(fd);
+  http_send_string(fd, read_buffer);
+
+  fclose(fp);
+  free(read_buffer);
+}
+
 void handle_files_request(int fd) {
 
   /*
    * TODO: Your solution for Task 1 goes here! Feel free to delete/modify *
    * any existing code.
    */
-
+  printf("in handlers\n");
   struct http_request *request = http_request_parse(fd);
+  printf("parse request succeed.\n");
+  if (!request) {
+    fprintf(stderr, "%s\n", "Request parse Failed");
+    return;
+  }
+  /* get the file path. */ 
+  // printf("%s %d\n", server_files_directory, strlen(server_files_directory));
+  char *file_path = malloc(strlen(server_files_directory) + strlen(request->path));
+  strncpy(file_path, server_files_directory, strlen(server_files_directory)-1); // don't need the last '/'.
+  file_path[strlen(server_files_directory)-1] = '\0';
+  // printf("%s %d\n", file_path, strlen(file_path));
+  strcat(file_path, request->path);
+  printf("Request path: %s\n", request->path);
 
-  http_start_response(fd, 200);
-  http_send_header(fd, "Content-Type", "text/html");
-  http_end_headers(fd);
-  http_send_string(fd,
-      "<center>"
-      "<h1>Welcome to httpserver!</h1>"
-      "<hr>"
-      "<p>Nothing's here yet.</p>"
-      "</center>");
+  FILE* fp = fopen(file_path, "rb+");
+  if (fp) {  // it's a regular file.
+    write_file(file_path, fp, fd);
+  }
+  else if (errno == EISDIR) {  //it's a directory
+    //first, find index.html
+    char *index_path = malloc(50);
+    strcpy(index_path, file_path);
+    strcat(index_path, "/index.html");
+    FILE *file = fopen(index_path, "rb+");
+    if (file) {
+      write_file(index_path, file, fd);
+    }
+    else {  //no index.html, list all files.
+      DIR *dir = opendir(file_path);
+      if (!dir) {
+        printf("open fail\n");
+        return;
+      }
+
+      struct dirent *entry;
+      char *body = malloc(4096);
+      char *buffer = malloc(128);
+      body[0] = '\0';
+      while ((entry = readdir(dir)) != NULL) {
+        snprintf(buffer, 128, "<a href=\"%s/%s\">%s</a><br>", request->path, entry->d_name, entry->d_name);
+        // printf("<a href=\"%s/%s\">%s</a><br>\n", request->path, entry->d_name, entry->d_name);
+        strcat(body, buffer);
+      }
+      int sz = strlen(body);
+      char sz_string[20];
+      snprintf(sz_string, sizeof(sz_string), "%d", sz);
+      http_start_response(fd, 200);
+      http_send_header(fd, "Content-Type", "text/html");
+      http_send_header(fd, "Content-Length", sz_string);
+      http_end_headers(fd);
+      // http_send_string(fd,
+      //     "<center>"
+      //     "<h1>Welcome to httpserver!</h1>"
+      //     "<hr>"
+      //     "<p>It's a directory.</p>"
+      //     "</center>");
+      http_send_string(fd, body);
+    }
+    // fclose(fp);
+  }
+  else {  //it's not existed.
+    http_start_response(fd, 404);
+    http_send_header(fd, "Content-Type", "text/html");
+    http_end_headers(fd);
+    http_send_string(fd,
+        "<center>"
+        "<h1>404 Not Found.</h1>"
+        "<hr>"
+        "<p>Error.</p>"
+        "</center>");
+  }
+  // free(file_path);
 }
 
 
@@ -182,18 +274,23 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
       perror("Error accepting socket");
       continue;
     }
-
-    printf("Accepted connection from %s on port %d\n",
+    time_t current_time = time(NULL);
+    char *c_time_string = ctime(&current_time);
+    printf("[%s]: Accepted connection from %s on port %d\n",
+        c_time_string, 
         inet_ntoa(client_address.sin_addr),
         client_address.sin_port);
 
     // TODO: Change me?
+    printf("Begin to handle the request\n");
     request_handler(client_socket_number);
+    printf("Succeed to response\n");
     close(client_socket_number);
+    printf("Succeed to close socket\n");
 
-    printf("Accepted connection from %s on port %d\n",
-        inet_ntoa(client_address.sin_addr),
-        client_address.sin_port);
+    // printf("Accepted connection from %s on port %d\n",
+    //     inet_ntoa(client_address.sin_addr),
+    //     client_address.sin_port);
   }
 
   shutdown(*socket_number, SHUT_RDWR);
@@ -283,3 +380,12 @@ int main(int argc, char **argv) {
 
   return EXIT_SUCCESS;
 }
+
+// bool isDirectory(const char* path) {
+//   FILE *fp = fopen(path, "r+");
+//   if (fp) {
+//     fclose(fp);
+//     return false;
+//   }
+//   return errno == EISDIR;
+// }
