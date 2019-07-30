@@ -21,7 +21,7 @@
 #include "wq.h"
 
 #define BLOCK 1024
-#define LIBHTTP_REQUEST_MAX_SIZE 8192
+#define LIBHTTP_REQUEST_MAX_SIZE 16384
 /*
  * Global configuration variables.
  * You need to use these in your implementation of handle_files_request and
@@ -50,27 +50,31 @@ int server_proxy_port;
  */
 
 void write_file(char *file_path, FILE *fp, int fd) {
-  //read the file into read_buffer
-  char *read_buffer = malloc(LIBHTTP_REQUEST_MAX_SIZE + 1);
+  //get the data size.
+  fseek(fp, 0, SEEK_END);
+  int size = ftell(fp);
+  rewind(fp);
+  
+  char *read_buffer = malloc(size+1);
   if (!read_buffer) {
     fprintf(stderr, "%s\n", "Malloc Failed");
   }
-  int bytes_read = fread(read_buffer, sizeof(char), LIBHTTP_REQUEST_MAX_SIZE, fp);
+  int bytes_read = fread(read_buffer, 1, size, fp);
+  printf("[write_file]: bytes_read: %d\n", bytes_read);
   read_buffer[bytes_read] = '\0';
-  int sz = strlen(read_buffer);
   // convert the int to char*.
   char sz_string[20];
-  snprintf(sz_string, sizeof(sz_string), "%d", sz);
+  snprintf(sz_string, sizeof(sz_string), "%d", bytes_read);
 
   // start to write response.
   http_start_response(fd, 200);
   http_send_header(fd, "Content-Type", http_get_mime_type(file_path));
   http_send_header(fd, "Content-Length", sz_string);
   http_end_headers(fd);
-  http_send_string(fd, read_buffer);
+  http_send_data(fd, read_buffer, bytes_read);
 
   fclose(fp);
-  free(read_buffer);
+  //free(read_buffer);
 }
 
 void handle_files_request(int fd) {
@@ -124,6 +128,7 @@ void handle_files_request(int fd) {
         // printf("<a href=\"%s/%s\">%s</a><br>\n", request->path, entry->d_name, entry->d_name);
         strcat(body, buffer);
       }
+      free(buffer);
       int sz = strlen(body);
       char sz_string[20];
       snprintf(sz_string, sizeof(sz_string), "%d", sz);
@@ -138,6 +143,7 @@ void handle_files_request(int fd) {
       //     "<p>It's a directory.</p>"
       //     "</center>");
       http_send_string(fd, body);
+      free(body);
     }
     // fclose(fp);
   }
