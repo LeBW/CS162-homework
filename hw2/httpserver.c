@@ -124,7 +124,15 @@ void handle_files_request(int fd) {
       char *buffer = malloc(128);
       body[0] = '\0';
       while ((entry = readdir(dir)) != NULL) {
-        snprintf(buffer, 128, "<a href=\"%s/%s\">%s</a><br>", request->path, entry->d_name, entry->d_name);
+        if (strcmp(entry->d_name, "..") == 0) {
+          snprintf(buffer, 128, "<a href=\"../\">Parent directory</a><br>");
+        }
+        else if (strcmp(entry->d_name, ".") == 0) {
+          snprintf(buffer, 128, "<a href=\".\">.</a><br>");
+        }
+        else {
+          snprintf(buffer, 128, "<a href=\"%s/%s\">%s</a><br>", request->path, entry->d_name, entry->d_name);
+        }
         // printf("<a href=\"%s/%s\">%s</a><br>\n", request->path, entry->d_name, entry->d_name);
         strcat(body, buffer);
       }
