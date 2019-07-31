@@ -29,7 +29,7 @@
  * command line arguments (already implemented for you).
  */
 wq_t work_queue;
-int num_threads;
+int num_threads = 5;
 int server_port;
 char *server_files_directory;
 char *server_proxy_hostname;
@@ -228,12 +228,30 @@ void handle_proxy_request(int fd) {
   * TODO: Your solution for task 3 belongs here! 
   */
 }
+void* thread_routine(void* args) {
+  void (*request_handler)(int) = (void(*)(int))args;
+  printf("[%lu] Thread start.\n", pthread_self());
+  while (1) {
+    int child_socket_fd = wq_pop(&work_queue);
+    printf("[%lu] Get the socket_fd. Start to handle it.\n", pthread_self());
+    request_handler(child_socket_fd);
+    close(child_socket_fd);
+    printf("[%lu] Finish to handle the request.\n", pthread_self());
+  }
+  return NULL;
+}
 
 
 void init_thread_pool(int num_threads, void (*request_handler)(int)) {
   /*
    * TODO: Part of your solution for Task 2 goes here!
    */
+  wq_init(&work_queue);
+  printf("[init_thread_pool] num_threads: %d\n", num_threads);
+  for (int i = 0; i < num_threads; i++) {
+    pthread_t thread;
+    pthread_create(&thread, NULL, &thread_routine, request_handler);
+  }
 }
 
 /*
@@ -290,17 +308,18 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
     }
     time_t current_time = time(NULL);
     char *c_time_string = ctime(&current_time);
-    printf("[%s]: Accepted connection from %s on port %d\n",
+    printf("\n[%s]: Accepted connection from %s on port %d\n",
         c_time_string, 
         inet_ntoa(client_address.sin_addr),
         client_address.sin_port);
 
     // TODO: Change me?
-    printf("Begin to handle the request\n");
-    request_handler(client_socket_number);
-    printf("Succeed to response\n");
-    close(client_socket_number);
-    printf("Succeed to close socket\n");
+    wq_push(&work_queue, client_socket_number);
+    // printf("Begin to handle the request\n");
+    // request_handler(client_socket_number);
+    // printf("Succeed to response\n");
+    // close(client_socket_number);
+    // printf("Succeed to close socket\n");
 
     // printf("Accepted connection from %s on port %d\n",
     //     inet_ntoa(client_address.sin_addr),
