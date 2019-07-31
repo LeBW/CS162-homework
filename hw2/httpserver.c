@@ -22,6 +22,15 @@
 
 #define BLOCK 1024
 #define LIBHTTP_REQUEST_MAX_SIZE 16384
+
+// Struct used in proxy mode.
+struct two_fds {
+  int client_fd;
+  int server_fd;
+};
+
+void* client_to_server(void *args);
+void* server_to_client(void *args);
 /*
  * Global configuration variables.
  * You need to use these in your implementation of handle_files_request and
@@ -227,7 +236,48 @@ void handle_proxy_request(int fd) {
   /* 
   * TODO: Your solution for task 3 belongs here! 
   */
+  struct two_fds fds;
+  fds.client_fd = fd;
+  fds.server_fd = client_socket_fd;
+  /* create two threads. 
+   * Thread 1: send data from client to server.
+   * Thread 2: send data from server to client.
+   */ 
+  pthread_t thread1, thread2;
+  pthread_create(&thread1, NULL, &client_to_server, (void *)&fds);
+  pthread_create(&thread2, NULL, &server_to_client, (void *)&fds);
+  pthread_join(thread1, NULL);
+  pthread_join(thread2, NULL);
 }
+
+void* client_to_server(void *args) {
+  struct two_fds *fds = (struct two_fds*) args;
+  char buffer[1024];
+  int bytes_read;
+  while ((bytes_read = read(fds->client_fd, buffer, sizeof(buffer))) > 0) {
+    int bytes_write = write(fds->server_fd, buffer, bytes_read);
+    // if write failed, close the socket.
+    if (bytes_write < 0) {
+      close(fds->client_fd);
+    }
+  }
+  return NULL;
+}
+
+void* server_to_client(void *args) {
+  struct two_fds *fds = (struct two_fds*) args;
+  char buffer[1024];
+  int bytes_read;
+  while ((bytes_read = read(fds->server_fd, buffer, sizeof(buffer))) > 0) {
+    int bytes_write = write(fds->client_fd, buffer, bytes_read);
+    // if write failed, clise the socket.
+    if (bytes_write < 0) {
+      close(fds->server_fd);
+    }
+  }
+  return NULL;
+}
+
 void* thread_routine(void* args) {
   void (*request_handler)(int) = (void(*)(int))args;
   printf("[%lu] Thread start.\n", pthread_self());
