@@ -35,22 +35,39 @@ void load_alloc_functions() {
     }
 }
 
-int main() {
-    load_alloc_functions();
-
-    int *data = (int*) mm_malloc(sizeof(int)*2);
+void test_mm_alloc()
+{
+    int *data = (int*) mm_malloc(sizeof(int)*10);
     //int *data = malloc(sizeof(int));
     assert(data != NULL);
     data[0] = 0x162;
     data[1] = 888;
-    int *data2 = (int*) mm_malloc(sizeof(int));
-    //int *data2 = malloc(sizeof(int));
-    printf("%d %d\n", data[0], data[1]);
-    data2[0] = 1;
+    printf("data addr: %p\n", data);
     mm_free(data);
-    //mm_free(data2);
+    int *data1 = (int*) mm_malloc(sizeof(int));
+    int *data2 = (int*) mm_malloc(sizeof(int));
     int *data3 = (int*) mm_malloc(sizeof(int));
-    printf("data: %lu, data3: %lu\n", data, data3);
+    printf("data1 addr: %p, data2 addr: %p, data3 addr: %p\n", data1, data2, data3);
     printf("malloc test successful!\n");
+}
+
+void test_mm_free()
+{
+    int *data1 = (int*) mm_malloc(sizeof(int));
+    int *data2 = (int*) mm_malloc(sizeof(int));
+    int *data3 = (int*) mm_malloc(sizeof(int));
+    mm_free(data1);
+    mm_free(data3);
+    mm_free(data2);
+    int *data = (int*) mm_malloc(60);
+    printf("data1 addr: %p, data addr: %p\n", data1, data);
+}
+
+int main() {
+    load_alloc_functions();
+
+//    test_mm_alloc();
+    test_mm_free();
+
     return 0;
 }
