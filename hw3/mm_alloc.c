@@ -90,7 +90,16 @@ void *mm_malloc(size_t size) {
 
 void *mm_realloc(void *ptr, size_t size) {
     /* YOUR CODE HERE */
-    return NULL;
+    if (ptr == NULL)
+        return mm_malloc(size);
+    mm_free(ptr);
+    if (size == 0)
+        return NULL;
+    char tempstr[size];
+    memcpy(tempstr, ptr, size);
+    void *nptr = mm_malloc(size);
+    memcpy(nptr, tempstr, size);
+    return nptr;
 }
 
 void mm_free(void *ptr) {

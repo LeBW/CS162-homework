@@ -47,7 +47,7 @@ void test_mm_alloc()
     int *data1 = (int*) mm_malloc(sizeof(int));
     int *data2 = (int*) mm_malloc(sizeof(int));
     int *data3 = (int*) mm_malloc(sizeof(int));
-    printf("data1 addr: %p, data2 addr: %p, data3 addr: %p\n", data1, data2, data3);
+    printf("data addr: %p, data1 addr: %p, data2 addr: %p, data3 addr: %p\n", data, data1, data2, data3);
     printf("malloc test successful!\n");
 }
 
@@ -63,11 +63,22 @@ void test_mm_free()
     printf("data1 addr: %p, data addr: %p\n", data1, data);
 }
 
+void test_mm_realloc()
+{
+    char* str1 = (char*) mm_malloc(5);
+    strcpy(str1, "abcd");
+    printf("%p: %s\n", str1, str1);
+    char* str2 = (char*) mm_realloc(str1, 10);
+    printf("%p: %s\n", str2, str2);
+    str2 = (char*) mm_realloc(str1, 3);
+    printf("%p: %s\n", str2, str2);
+}
+
 int main() {
     load_alloc_functions();
 
-//    test_mm_alloc();
-    test_mm_free();
-
+ //   test_mm_alloc();
+ //   test_mm_free();
+    test_mm_realloc();
     return 0;
 }
