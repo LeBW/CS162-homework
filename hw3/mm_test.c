@@ -38,10 +38,19 @@ void load_alloc_functions() {
 int main() {
     load_alloc_functions();
 
-    int *data = (int*) mm_malloc(sizeof(int));
+    int *data = (int*) mm_malloc(sizeof(int)*2);
+    //int *data = malloc(sizeof(int));
     assert(data != NULL);
     data[0] = 0x162;
+    data[1] = 888;
+    int *data2 = (int*) mm_malloc(sizeof(int));
+    //int *data2 = malloc(sizeof(int));
+    printf("%d %d\n", data[0], data[1]);
+    data2[0] = 1;
     mm_free(data);
+    //mm_free(data2);
+    int *data3 = (int*) mm_malloc(sizeof(int));
+    printf("data: %lu, data3: %lu\n", data, data3);
     printf("malloc test successful!\n");
     return 0;
 }
